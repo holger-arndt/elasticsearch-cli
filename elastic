@@ -1,0 +1,424 @@
+#!/bin/bash
+
+SHORT_HOSTNAME=$(hostname --short)
+URL="http://$SHORT_HOSTNAME:9200"
+CURL="curl -s"
+HEADER="Content-Type: application/json"
+
+if ! type "curl" &> /dev/null; then
+  echo "Error: This script requires the program curl for communication with elasticsearch"
+  exit 1
+fi
+
+if ! type "jq" &> /dev/null; then
+  echo "Error: This script requires the program jq for parsing json"
+  exit 1
+fi
+
+
+case "$1" in
+
+
+alias)
+    case "$2" in
+
+        add|create|new)
+            if [[ -z "$3" ]]
+            then
+              echo "No index defined"
+              exit 1
+            fi
+            if [[ -z "$4" ]]
+            then
+              echo "No alias defined"
+              exit 1
+            fi
+            ${CURL} -X POST ${URL}/_aliases?format=json -d '{"actions": [{"add": {"index": "'$3'", "alias": "'$4'" }}]}' -H "${HEADER}" | jq
+            ;;
+
+        delete|drop|remove)
+            if [[ -z "$3" ]]
+            then
+              echo "No index defined"
+              exit 1
+            fi
+            if [[ -z "$4" ]]
+            then
+              echo "No alias defined"
+              exit 1
+            fi
+            ${CURL} -X POST ${URL}/_aliases?format=json -d '{"actions": [{"remove": {"index": "'$3'", "alias": "'$4'" }}]}' -H "${HEADER}" | jq
+            ;;
+
+        list|status)
+            ${CURL} ${URL}/_cat/aliases?format=json | jq
+            ;;
+
+        *)
+            echo "Usage: elastic alias [add|create|delete|drop|list|new|remove|status] index alias"
+            exit
+    esac
+
+    ;;
+
+
+cluster)
+    case "$2" in
+
+        health)
+            ${CURL} ${URL}/_cluster/health?format=json | jq
+            ;;
+
+        name)
+            ${CURL} ${URL}/_cluster/health?format=json | jq -r '.cluster_name'
+            ;;
+
+        settings)
+            ${CURL} ${URL}/_cluster/settings?format=json | jq
+            ;;
+
+        state)
+            ${CURL} ${URL}/_cluster/state?format=json | jq
+            ;;
+
+        status)
+            ${CURL} ${URL}/_cluster/health?format=json | jq -r '.status'
+            ;;
+
+        version)
+            ${CURL} ${URL}/ | jq -r '.version.number'
+            ;;
+
+        *)
+            echo "Usage: elastic cluster [health|name|settings|state|status|version]"
+            exit
+    esac
+
+    ;;
+
+
+
+
+index)
+    case "$2" in
+
+        add|create|new)
+            if [[ -z "$3" ]]
+            then
+              echo "No index defined"
+              exit 1
+            fi
+            if [[ -z "$4" ]]
+            then
+              echo "Number of shards not defined"
+              exit 1
+            fi
+            if [[ -z "$5" ]]
+            then
+              echo "Number of replicas not defined"
+              exit 1
+            fi
+            ${CURL} -X PUT ${URL}/$3?format=json -d '{"settings": { "index.number_of_shards": '$4', "index.number_of_replicas": '$5' }}' -H "${HEADER}" | jq
+            ;;
+
+        close)
+            if [[ -z "$3" ]]
+            then
+              echo "No index defined"
+              exit 1
+            fi
+            ${CURL} -X POST ${URL}/$3/_close?format=json | jq
+            ;;
+
+        copy|reindex)
+            if [[ -z "$3" ]]
+            then
+              echo "No source index defined"
+              exit 1
+            fi
+            if [[ -z "$4" ]]
+            then
+              echo "No target index defined"
+              exit 1
+            fi
+            if [[ -z "$5" ]]
+            then
+              ${CURL} -X POST ${URL}/_reindex/?format=json -d '{"source": {"index": "'$3'"}, "dest": {"index": "'$4'"}}' -H "${HEADER}" | jq
+            else
+              if [[ -z "$6" ]]
+              then
+                echo "Number of replicas not defined"
+                exit 1
+              fi
+              ${CURL} -X PUT ${URL}/$4?format=json -d '{"settings": { "index.number_of_shards": '$5', "index.number_of_replicas": '$6' }}' -H "${HEADER}" | jq
+              ${CURL} -X POST ${URL}/_reindex/?format=json -d '{"source": {"index": "'$3'"}, "dest": {"index": "'$4'"}}' -H "${HEADER}" | jq
+            fi
+            ;;
+
+        delete|drop|remove)
+            if [[ -z "$3" ]]
+            then
+              echo "No index defined"
+              exit 1
+            fi
+
+            ${CURL} -X DELETE ${URL}/$3?format=json | jq
+            ;;
+
+        exists)
+            if [[ -z "$3" ]]
+            then
+              echo "No index defined"
+              exit 1
+            fi
+            ${CURL} -X HEAD ${URL}/$3
+            ;;
+
+        getmapping)
+            if [[ -z "$3" ]]
+            then
+              echo "No index defined"
+              exit 1
+            fi
+            ${CURL} -X GET ${URL}/$3/_mapping/?format=json | jq
+            ;;
+
+
+        list)
+            ${CURL} ${URL}/_cat/indices?format=json | jq -r '.[].index'
+            ;;
+
+        open)
+            if [[ -z "$3" ]]
+            then
+              echo "No index defined"
+              exit 1
+            fi
+            ${CURL} -X POST ${URL}/$3/_open?format=json | jq
+            ;;
+
+        readonly)
+           if [[ -z "$3" ]]
+           then
+             echo "No index defined"
+             exit 1
+           fi
+           if [[ -z "$4" ]]
+           then
+             echo "Select true or false"
+             exit 1
+           fi
+           ${CURL} -X PUT ${URL}/$3/_settings?format=json -d '{"index": { "blocks": {"read_only_allow_delete": "'$4'" }}}' -H "${HEADER}" | jq
+           ;;
+
+        replica|replicas)
+            if [[ -z "$3" ]]
+            then
+              echo "No index defined"
+              exit 1
+            fi
+            if [[ -z "$4" ]]
+            then
+              echo "No replica count"
+              exit 1
+            fi
+            ${CURL} -X PUT ${URL}/$3/_settings?format=json -d '{"index": { "number_of_replicas": '$4' }}' -H "${HEADER}" | jq
+            ;;
+
+
+        savemapping)
+            if [[ -z "$3" ]]
+            then
+              echo "No index defined"
+              exit 1
+            fi
+            if [[ -z "$4" ]]
+           then
+             echo "No output file defined"
+             exit 1
+           fi
+            ${CURL} -o $4 -X GET ${URL}/$3/_mapping/?format=json
+            ;;
+
+
+        status)
+            if [[ -z "$3" ]]
+            then
+              ${CURL} ${URL}/_cat/indices?format=json | jq
+              exit 0
+            fi
+            ${CURL} ${URL}/$3?format=json | jq
+            ;;
+
+        *)
+            echo "Usage: elastic index [add|close|copy|create|delete|drop|exists|getmapping|list|new|open|readonly|reindex|remove|replica|replicas|status] index"
+            exit
+    esac
+
+    ;;
+
+
+
+
+master)
+    case "$2" in
+
+        name)
+            ${CURL} ${URL}/_cat/master?format=json | jq -r '.[0].node'
+            ;;
+
+        status)
+            ${CURL} ${URL}/_cat/master?format=json | jq
+            ;;
+
+        *)
+            echo "Usage: elastic master [name|status]"
+            exit
+    esac
+
+    ;;
+
+
+
+
+node)
+    case "$2" in
+
+        data)
+            ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0]."node.data"'
+            ;;
+
+        info)
+            ${CURL} ${URL}/_cat/nodeattrs?format=json | jq
+            ;;
+
+        list)
+            ${CURL} ${URL}/_cat/nodes?format=json | jq -r '.[].name'
+            ;;
+
+        name)
+            ${CURL} ${URL}/ | jq -r '.name'
+            ;;
+
+        status)
+            ${CURL} ${URL}/_cat/nodes?format=json | jq
+            ;;
+
+        total)
+            ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0]."node.total"'
+            ;;
+
+        *)
+            echo "Usage: elastic node [data|info|list|name|status|total]"
+            exit
+    esac
+
+    ;;
+
+
+plugin)
+    case "$2" in
+
+        status)
+            ${CURL} ${URL}/_cat/plugins?format=json | jq
+            ;;
+
+        *)
+            echo "Usage: elastic plugin [status]"
+            exit
+    esac
+
+    ;;
+
+
+search)
+     if [[ -z "$2" ]]
+     then
+       echo "No query defined"
+       exit 1
+     fi
+     if [[ -z "$3" ]]
+     then
+       ${CURL} ${URL}/_search?q=$2 | jq
+       exit 0
+     fi
+     ${CURL} ${URL}/$2/_search?q=$3 | jq
+
+    ;;
+
+
+shard|shards)
+    case "$2" in
+
+        allocation)
+            if [[ -z "$3" ]]
+            then
+              echo "Choose none to disable allocation or null to restart it"
+              exit 1
+            fi
+            if [[ "$3" == "null" ]]
+            then
+              ${CURL} -X PUT ${URL}/_cluster/settings?format=json -d '{"persistent": {"cluster.routing.allocation.enable": null}}' -H "${HEADER}" | jq
+            else
+              ${CURL} -X PUT ${URL}/_cluster/settings?format=json -d '{"persistent": {"cluster.routing.allocation.enable": "'$3'"}}' -H "${HEADER}" | jq
+            fi
+            ;;
+
+        exclude)
+            if [[ -z "$3" ]]
+            then
+              echo "No host defined"
+              exit 1
+            fi
+            ${CURL} -X PUT ${URL}/_cluster/settings?format=json -d '{"transient": {"cluster.routing.allocation.exclude._name": "'$3'"}}' -H "${HEADER}" | jq
+            ;;
+
+        initializing)
+            ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0].init'
+            ;;
+
+        primary)
+            ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0].pri'
+            ;;
+
+        rebalance)
+            if [[ -z "$3" ]]
+            then
+              echo "No type defined: use [all|primaries|replicas|none]"
+              exit 1
+            fi
+            ${CURL} -X PUT ${URL}/_cluster/settings?format=json -d '{"transient": {"cluster.routing.rebalance.enable": "'$3'"}}' -H "${HEADER}" | jq
+            ;;
+
+        relocating)
+            ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0].relo'
+            ;;
+
+        status)
+            ${CURL} ${URL}/_cat/shards?format=json | jq
+            ;;
+
+        total)
+            ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0].shards'
+            ;;
+
+        unassigned)
+            ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0].unassign'
+            ;;
+
+        *)
+            echo "Usage: elastic shard [allocation|exclude|initializing|primary|rebalance|relocating|status|total|unassigned]"
+            exit
+    esac
+
+    ;;
+
+
+
+*)
+    echo "Usage: elastic [alias|cluster|index|master|node|plugin|reindex|search|shard] command parameters"
+    ;;
+
+esac
+
+
