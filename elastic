@@ -65,6 +65,10 @@ alias)
 cluster)
     case "$2" in
 
+        allocation)
+            ${CURL} ${URL}/_cluster/allocation/explain | jq
+            ;;
+
         health)
             ${CURL} ${URL}/_cluster/health?format=json | jq
             ;;
@@ -90,7 +94,7 @@ cluster)
             ;;
 
         *)
-            echo "Usage: elastic cluster [health|name|settings|state|status|version]"
+            echo "Usage: elastic cluster [allocation|health|name|settings|state|status|version]"
             exit
     esac
 
@@ -417,6 +421,12 @@ shard|shards)
 
 *)
     echo "Usage: elastic [alias|cluster|index|master|node|plugin|reindex|search|shard] command parameters"
+    echo
+    echo "EXAMPLES:"
+    echo "elastic cluster health                    Display cluster health information"
+    echo "elastic allocation explain                Display problems while allocating shards"
+    echo "elastic shard allocation none             Disable shard allocation before updating a node"
+    echo "elastic shard allocation all              Enable shard allocation"
     ;;
 
 esac
