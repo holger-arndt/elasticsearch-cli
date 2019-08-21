@@ -11,6 +11,7 @@ Command line tool to use elasticsearch without having to know all the complicate
 - `elastic allocation explain`                Display problems while allocating shards
 - `elastic shard allocation none`             Disable shard allocation before updating a node
 - `elastic shard allocation all`              Enable shard allocation
+- `elastic allocation retry`                  Retry shard allocation if there are unassigned shards
 
 ## LICENSE
 
