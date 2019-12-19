@@ -22,7 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-function showHelpGeneral() {
+function show_help_general() {
   echo "elasticsearch-cli version 0.13"
   echo "Copyright (C) 2019 by Holger Arndt"
   echo "Web site: https://holger-arndt.com/elasticsearch-cli"
@@ -33,10 +33,16 @@ function showHelpGeneral() {
   echo "Usage: elastic [OPTIONS] COMMAND SUBCOMMAND PARAMETERS"
   echo
   echo "OPTIONS:"
+  echo "  --mapping=FILE   mapping file to use when creating an index"
+  echo "  --mappings=FILE  mapping file to use when creating an index"
+  echo "  --replica=NUM    setting for number of replicas when creating a new index"
+  echo "  --replicas=NUM   setting for number of replicas when creating a new index"
+  echo "  --settings=FILE  setting file to use when creating an index"
   echo "  --size=NUM       maximum number of results to return, defaults to 1000"
-  echo "  --script=STRING  inline script to use for context processing;"
-  echo "                   take care of quotes, example:"
+  echo "  --script=STRING  inline script to use for context processing; pay attention"
+  echo "                   to correctly escape quotes, for example like this:"
   echo "                   --script='ctx._source.new=ctx._source.remove(\\\"old\\\");'"
+  echo "  --schards=NUM    setting for number of shards when creating a new index"
   echo "  --timeout=NUM    maximum time to wait for results, defaults to 60 seconds"
   echo "  --url=STRING     base URL of Elasticsearch node, defaults to"
   echo "                   http://localhost:9200"
@@ -47,10 +53,11 @@ function showHelpGeneral() {
   echo "  cluster          information and administration of the cluster"
   echo "  color, colour    show the color of the cluster status [green|red|yellow]"
   echo "  delete           delete aliases or indices"
-  echo "  dump             export index data, mapping or settings"
+  echo "  dump, export     export index data, mapping or settings"
   echo "  health           show health status of the cluster"
   echo "  help             show help information for commands"
   echo "  index, indices   create, delete or manage indices"
+  echo "  list             list aliases, indices, nodes or plugins"
   echo "  master           information and administration of the master node"
   echo "  node, nodes      information about the nodes in the cluster"
   echo "  plugin, plugins  information about installed plugins"
@@ -78,15 +85,20 @@ function showHelpGeneral() {
   exit 1
 }
 
-function configureDefaults() {
-  URL="http://localhost:9200"
+###############################################################################
+# Helper Functions
+###############################################################################
+
+function configure_defaults() {
   HEADER="Content-Type: application/json"
   CURL="curl -s"
-  SIZE=1000
-  TIMEOUT=60
+
+  size=1000
+  timeout=60
+  url="http://localhost:9200"
 }
 
-function checkDependencies() {
+function check_dependencies() {
   if ! type "curl" &>/dev/null; then
     echo "Error: This script requires the program curl for communication with Elasticsearch"
     exit 1
@@ -103,71 +115,64 @@ function checkDependencies() {
   fi
 }
 
-function showHelp() {
-  COMMAND="$1"
-  shift
-
-  case "$COMMAND" in
-
-  alias | aliases) showHelpAlias ;;
-  allocation) showHelpAllocation ;;
-  cluster) showHelpCluster ;;
-  color | colour) showHelpColor ;;
-  delete) showHelpDelete ;;
-  dump) showHelpDump ;;
-  health) showHelpHealth ;;
-  index | indices) showHelpIndex ;;
-  master) showHelpMaster ;;
-  node | nodes) showHelpNode ;;
-  plugin | plugins) showHelpPlugin ;;
-  reindex) showHelpReindex ;;
-  query | search) showHelpQuery ;;
-  shard | shards) showHelpShard ;;
-  status) showHelpStatus ;;
-  sql) showHelpSql ;;
-  task | tasks) showHelpTask ;;
-  version) showHelpVersion ;;
-  *) showHelpGeneral ;;
-
-  esac
+function load_mappings() {
+  file="$1"
+  if [ ! -f "${file}" ]; then
+    echo "Error: File does not exist: ${file}"
+    exit 1
+  fi
+  mappings=$( cat "${file}" | jq '.[].mappings')
 }
 
-function showHelpAlias() {
+function load_settings() {
+  file="$1"
+  if [ ! -f "${file}" ]; then
+    echo "Error: File does not exist: ${file}"
+    exit 1
+  fi
+  settings=$(cat "${file}" | jq '.[].settings' | jq 'del(.index["creation_date","provided_name","uuid","version"])')
+}
+
+###############################################################################
+# Display Help for Functions
+###############################################################################
+
+function show_help_alias() {
   echo "Usage: elastic alias [add|create|delete|drop|list|new|remove|rm|status]"
   exit 1
 }
 
-function showHelpAllocation() {
-  echo "Usage: elastic allocation [retry]"
-  exit 1
-}
-
-function showHelpAliasCreate() {
+function show_help_alias_create() {
   echo "Usage: elastic alias create INDEX ALIAS"
   exit 1
 }
 
-function showHelpAliasDelete() {
+function show_help_alias_delete() {
   echo "Usage: elastic alias delete INDEX ALIAS"
   exit 1
 }
 
-function showHelpAliasStatus() {
+function show_help_alias_status() {
   echo "Usage: elastic alias status"
   exit 1
 }
 
-function showHelpCluster() {
+function show_help_allocation() {
+  echo "Usage: elastic allocation [retry]"
+  exit 1
+}
+
+function show_help_cluster() {
   echo "Usage: elastic cluster [allocation|color|colour|health|name|settings|state|status|version]"
   exit 1
 }
 
-function showHelpColor() {
+function show_help_color() {
   echo "Usage: elastic color"
   exit 1
 }
 
-function showHelpDelete() {
+function show_help_delete() {
   echo "Usage: elastic delete [alias|index]"
   echo
   echo "delete alias       remove an alias for an index"
@@ -175,62 +180,62 @@ function showHelpDelete() {
   exit 1
 }
 
-function showHelpDump() {
+function show_help_dump() {
   echo "Usage: elastic dump"
   exit 1
 }
 
-function showHelpHealth() {
+function show_help_health() {
   echo "Usage: elastic help"
   exit 1
 }
 
-function showHelpIndex() {
+function show_help_index() {
   echo "Usage: elastic index [add|close|copy|create|delete|drop|exists|getmapping|list|new|open|readonly|reindex|remove|replica|replicas|status] index"
   exit 1
 }
 
-function showHelpMaster() {
+function show_help_list() {
+  echo "Usage: elastic list [alias|index|node|plugin]"
+  exit 1
+}
+
+function show_help_master() {
   echo "Usage: elastic master [name|status]"
   exit 1
 }
 
-function showHelpNode() {
+function show_help_node() {
   echo "Usage: elastic node [data|info|list|name|status|total]"
   exit 1
 }
 
-function showHelpPlugin() {
+function show_help_plugin() {
   echo "Usage: elastic plugin [list|status]"
   exit 1
 }
 
-function showHelpReindex() {
-  echo "Usage: elastic reindex"
+function show_help_reindex() {
+  echo "Usage: elastic reindex SOURCE_INDEX TARGET_INDEX"
   exit 1
 }
 
-function showHelpQuery() {
-  echo "Usage: elastic query QUERY"
-  exit 1
-}
-
-function showHelpSearch() {
+function show_help_search() {
   echo "Usage: elastic search QUERY"
   exit 1
 }
 
-function showHelpShard() {
+function show_help_shard() {
   echo "Usage: elastic shard [allocation|exclude|initializing|primary|rebalance|relocating|status|total|unassigned]"
   exit 1
 }
 
-function showHelpStatus() {
+function show_help_status() {
   echo "Usage: elastic status"
   exit 1
 }
 
-function showHelpSql() {
+function show_help_sql() {
   echo "Usage: elastic sql QUERY"
   echo "       cat myquery.sql | elastic sql"
   echo
@@ -239,165 +244,338 @@ function showHelpSql() {
   exit 1
 }
 
-function showHelpTask() {
+function show_help_task() {
   echo "Usage: elastic task [abort|cancel|kill|list|status|stop|terminate]"
   exit 1
 }
 
-function showHelpVersion() {
+function show_help_version() {
   echo "Usage: elastic version"
   exit 1
 }
 
-function handleAlias() {
-  COMMAND="$1"
+###############################################################################
+# Parse Functions for Commands
+###############################################################################
+
+function parse_alias_command() {
+  command="$1"
   shift
 
-  case "${COMMAND}" in
+  case "${command}" in
 
-  add | create | new) handleAliasCreate "$@" ;;
-  delete | drop | remove | rm) handleAliasDelete "$@" ;;
-  list | status) handleAliasStatus "$@" ;;
-  *) showHelpAlias ;;
+  add | create | new) handle_alias_create "$@" ;;
+  delete | drop | remove | rm) handle_alias_delete "$@" ;;
+  list | status) handle_alias_status "$@" ;;
+  *) show_help_alias "$@" ;;
 
   esac
   exit 1
 }
 
-function handleAliasCreate() {
-  INDEX="$1"
-  ALIAS="$2"
-
-  if [[ -z "${INDEX}" ]]; then
-    echo "No index defined"
-    showHelpAliasCreate
-  fi
-  if [[ -z "${ALIAS}" ]]; then
-    echo "No alias defined"
-    showHelpAliasCreate
-  fi
-
-  ${CURL} -X POST ${URL}/_aliases?format=json -d '{"actions": [{"add": {"index": "'"${INDEX}"'", "alias": "'"${ALIAS}"'" }}]}' -H "${HEADER}" | jq '.'
-}
-
-function handleAliasDelete() {
-  INDEX="$1"
-  ALIAS="$2"
-
-  if [[ -z "${INDEX}" ]]; then
-    echo "No index defined"
-    showHelpAliasDelete
-  fi
-
-  if [[ -z "${ALIAS}" ]]; then
-    echo "No alias defined"
-    showHelpAliasDelete
-  fi
-
-  ${CURL} -X POST ${URL}/_aliases?format=json -d '{"actions": [{"remove": {"index": "'${INDEX}'", "alias": "'${ALIAS}'" }}]}' -H "${HEADER}" | jq '.'
-  exit 0
-}
-
-function handleAliasStatus() {
-  ${CURL} ${URL}/_cat/aliases?format=json | jq '.'
-  exit 0
-}
-
-function handleAllocation() {
-  COMMAND="$1"
+function parse_allocation_command() {
+  command="$1"
   shift
 
-  case "${COMMAND}" in
+  case "${command}" in
 
-  include) handleAllocationInclude "$@" ;;
-  retry) handleAllocationRetry "$@" ;;
-  *) showHelpAllocation ;;
+  include) handle_allocation_include "$@" ;;
+  retry) handle_allocation_retry "$@" ;;
+  *) show_help_allocation "$@" ;;
 
   esac
   exit 1
 }
 
-function handleAllocationInclude() {
-  #  "index.routing.allocation.include._name": "node1"
-  echo "not implemented yet"
-  exit 1
-}
-
-function handleAllocationRetry() {
-  #  "index.routing.allocation.include._name": "node1"
-  ${CURL} -X POST ${URL}/_cluster/reroute?retry_failed=true | jq '.'
-  exit 0
-}
-
-function handleCluster() {
-  COMMAND="$1"
+function parse_cluster_command() {
+  command="$1"
   shift
 
-  case "$COMMAND" in
+  case "${command}" in
 
-  allocation) handleClusterAllocation ;;
-  color | colour) handleClusterStatus ;;
-  health) handleClusterHealth ;;
-  name) handleClusterName ;;
-  settings) handleClusterSettings ;;
-  state) handleClusterState ;;
-  status) handleClusterStatus ;;
-  version) handleClusterVersion ;;
-  *) showHelpCluster ;;
+  allocation) handleClusterAllocation "$@" ;;
+  color | colour) handleClusterStatus "$@" ;;
+  health) handleClusterHealth "$@" ;;
+  name) handleClusterName "$@" ;;
+  settings) handleClusterSettings "$@" ;;
+  state) handleClusterState "$@" ;;
+  status) handleClusterStatus "$@" ;;
+  version) handleClusterVersion "$@" ;;
+  *) showHelpCluster "$@" ;;
 
   esac
   exit 1
 }
 
-function handleClusterAllocation() {
-  ${CURL} ${URL}/_cluster/allocation/explain | jq '.'
-  exit 0
+function parse_color_command() {
+  handleClusterStatus "$@"
+  exit 1
 }
 
-function handleClusterHealth() {
-  ${CURL} ${URL}/_cluster/health?format=json | jq '.'
-  exit 0
-}
-
-function handleClusterName() {
-  ${CURL} ${URL}/_cluster/health?format=json | jq -r '.cluster_name'
-  exit 0
-}
-
-function handleClusterSettings() {
-  ${CURL} ${URL}/_cluster/settings?format=json | jq '.'
-  exit 0
-}
-
-function handleClusterState() {
-  ${CURL} ${URL}/_cluster/state?format=json | jq '.'
-  exit 0
-}
-
-function handleClusterStatus() {
-  ${CURL} ${URL}/_cluster/health?format=json | jq -r '.status'
-  exit 0
-}
-
-function handleClusterVersion() {
-  ${CURL} ${URL}/ | jq -r '.version.number'
-  exit 0
-}
-
-function handleDelete() {
-  COMMAND="$1"
+function parse_delete_command() {
+  command="$1"
   shift
 
-  case "$COMMAND" in
+  case "${command}" in
 
+  alias) handleAliasDelete "$@" ;;
   index) handleIndexDelete "$@" ;;
-  *) showHelpDelete ;;
+  *) showHelpDelete "$@" ;;
 
   esac
   exit 1
 }
 
-function handleDonation() {
+function parse_dump_command() {
+  command="$1"
+  shift
+
+  case "${command}" in
+
+  mapping) handle_dump_mapping "$@" ;;
+  index) handle_dump_index "$@" ;;
+  settings) handle_dump_settings "$@" ;;
+  *) show_help_dump "$@" ;;
+
+  esac
+  exit 1
+}
+
+function parse_health_command() {
+  handleClusterHealth "$@"
+}
+
+function parse_help_command() {
+  command="$1"
+  shift
+
+  case "command" in
+
+  alias | aliases) show_help_alias "$@" ;;
+  allocation) show_help_allocation "$@" ;;
+  cluster) show_help_cluster "$@" ;;
+  color | colour) show_help_color "$@" ;;
+  delete) show_help_delete "$@" ;;
+  donate | donation) process_donation_command ;;
+  dump | export) show_help_dump "$@" ;;
+  health) show_help_health "$@" ;;
+  index | indices) show_help_index "$@" ;;
+  master) show_help_master "$@" ;;
+  node | nodes) show_help_node "$@" ;;
+  plugin | plugins) show_help_plugin "$@" ;;
+  reindex) show_help_reindex "$@" ;;
+  query | search) show_help_search "$@" ;;
+  shard | shards) show_help_shard "$@" ;;
+  status) show_help_status "$@" ;;
+  sql) show_help_sql "$@" ;;
+  task | tasks) show_help_task "$@" ;;
+  version) show_help_version "$@" ;;
+  *) show_help_general "$@" ;;
+
+  esac
+  exit 1
+}
+
+function parse_index_command() {
+  command="$1"
+  shift
+
+  case "${command}" in
+
+  add | create | new) hanlde_index_create "$@" ;;
+  close) hanlde_index_close "$@" ;;
+  copy | reindex) handle_index_copy "$@" ;;
+  delete | drop | remove | rm) handle_index_delete "$@" ;;
+  exists) handle_index_exists "$@" ;;
+  getmapping) handle_dump_mapping "$@" ;;
+  list) handle_index_list "$@" ;;
+  open) handle_index_open "$@" ;;
+  readonly) handle_index_readonly "$@" ;;
+  replica | replicas) handle_index_replica "$@" ;;
+  status) handle_index_status "$@" ;;
+  *) show_help_index "$@" ;;
+
+  esac
+  exit 1
+}
+
+function parse_master_command() {
+  command="$1"
+  shift
+
+  case "${command}" in
+
+  name) handleMasterName "$@" ;;
+  status) handleMasterStatus "$@" ;;
+  *) showHelpMaster "$@" ;;
+
+  esac
+  exit 1
+}
+
+function parse_node_command() {
+  command="$1"
+  shift
+
+  case "${command}" in
+
+  count) handleNodeCount "$@" ;;
+  data) handleNodeData "$@" ;;
+  info) handleNodeInfo "$@" ;;
+  list) handleNodeList "$@" ;;
+  master) handleMasterName "$@" ;;
+  name) handleNodeName "$@" ;;
+  status) handleNodeStatus "$@" ;;
+  total) handleNodeCount "$@" ;;
+  *) showHelpNode "$@" ;;
+
+  esac
+  exit 1
+}
+
+function parse_plugin_command() {
+  command="$1"
+  shift
+
+  case "${command}" in
+
+  list | status)
+    ${CURL} ${URL}/_cat/plugins?format=json | jq '.'
+    ;;
+
+  *) showHelpPlugin "$@" ;;
+
+  esac
+  exit 1
+}
+
+function parse_shard_command() {
+  command="$1"
+  shift
+
+  case "${command}" in
+
+  allocation) handle_shard_allocation "$@" ;;
+  exclude) handle_shard_exclude "$@" ;;
+  initializing) handle_shard_initializing "$@" ;;
+  primary) handle_shard_primary "$@" ;;
+  rebalance) handle_shard_rebalance "$@" ;;
+  relocating) handle_shard_relocating "$@" ;;
+  status) handle_shard_status "$@" ;;
+  total) handle_shard_total "$@" ;;
+  unassigned) handle_shard_unassigned "$@" ;;
+  *) show_help_shard "$@" ;;
+
+  esac
+  exit 1
+}
+
+function parse_task_command() {
+  command="$1"
+  shift
+
+  case "${command}" in
+
+  abort | cancel | kill | stop | terminate) handleTaskCancel "$@" ;;
+  list | status) handleTaskList "$@" ;;
+  *) showHelpTask ;;
+
+  esac
+
+  exit 1
+}
+
+###############################################################################
+# Process Commands
+###############################################################################
+
+function handle_alias_create() {
+  INDEX="$1"
+  ALIAS="$2"
+
+  if [[ -z "${INDEX}" ]]; then
+    echo "Error: No index defined"
+    showHelpAliasCreate
+  fi
+  if [[ -z "${ALIAS}" ]]; then
+    echo "Error: No alias defined"
+    showHelpAliasCreate
+  fi
+
+  ${CURL} -X POST ${url}/_aliases?format=json -d '{"actions": [{"add": {"index": "'"${INDEX}"'", "alias": "'"${ALIAS}"'" }}]}' -H "${HEADER}" | jq '.'
+  exit 0
+}
+
+function handle_alias_delete() {
+  INDEX="$1"
+  ALIAS="$2"
+
+  if [[ -z "${INDEX}" ]]; then
+    echo "Error: No index defined"
+    showHelpAliasDelete
+  fi
+
+  if [[ -z "${ALIAS}" ]]; then
+    echo "Error: No alias defined"
+    showHelpAliasDelete
+  fi
+
+  ${CURL} -X POST ${url}/_aliases?format=json -d '{"actions": [{"remove": {"index": "'${INDEX}'", "alias": "'${ALIAS}'" }}]}' -H "${HEADER}" | jq '.'
+  exit 0
+}
+
+function handle_alias_status() {
+  ${CURL} ${url}/_cat/aliases?format=json | jq '.'
+  exit 0
+}
+
+function handle_allocation_include() {
+  #  "index.routing.allocation.include._name": "node1"
+  echo "Error: Not implemented yet"
+  exit 1
+}
+
+function handle_allocation_retry() {
+  ${CURL} -X POST ${url}/_cluster/reroute?retry_failed=true | jq '.'
+  exit 0
+}
+
+function handle_cluster_allocation() {
+  ${CURL} ${url}/_cluster/allocation/explain | jq '.'
+  exit 0
+}
+
+function handle_cluster_health() {
+  ${CURL} ${url}/_cluster/health?format=json | jq '.'
+  exit 0
+}
+
+function handle_cluster_name() {
+  ${CURL} ${url}/_cluster/health?format=json | jq -r '.cluster_name'
+  exit 0
+}
+
+function handle_cluster_settings() {
+  ${CURL} ${url}/_cluster/settings?format=json | jq '.'
+  exit 0
+}
+
+function handle_cluster_state() {
+  ${CURL} ${url}/_cluster/state?format=json | jq '.'
+  exit 0
+}
+
+function handle_cluster_status() {
+  ${CURL} ${url}/_cluster/health?format=json | jq -r '.status'
+  exit 0
+}
+
+function handle_cluster_version() {
+  ${CURL} ${URurlL}/ | jq -r '.version.number'
+  exit 0
+}
+
+function process_donation_command() {
   echo "I'm very happy, that you find this script useful."
   echo "If you would like to make a donation to support this project, please use the"
   echo "link below which will redirect you to PayPal:"
@@ -408,15 +586,16 @@ function handleDonation() {
   exit 0
 }
 
-function handleDump() {
+function handle_dump_index() {
   INDEX="$1"
-  if [[ -z ${INDEX} ]]; then
-    echo "No index defined"
+
+  if [[ -z "${INDEX}" ]]; then
+    echo "Error: No index defined"
     exit 1
   fi
 
   echo "["
-  DATA=$(${CURL} -X POST "${URL}/${INDEX}/_search?scroll=1m" -H "${HEADER}" -d '{"size": '${SIZE}', "query": { "match_all": {} } }')
+  DATA=$(${CURL} -X POST "${url}/${INDEX}/_search?scroll=1m" -H "${HEADER}" -d '{"size": '${SIZE}', "query": { "match_all": {} } }')
   SCROLLID=$(echo $DATA | jq -r "._scroll_id")
 
   while ! [[ $DATA =~ "\"hits\":[]" ]]; do
@@ -429,215 +608,222 @@ function handleDump() {
     echo $DATA | jq -M -r -a -c ".hits.hits" | sed 's/^.//' | sed 's/.$//' &
     PID=$!
 
-    DATA=$(${CURL} -X POST "${URL}/_search/scroll" -H "${HEADER}" -d '{ "scroll" : "1m", "scroll_id" : "'$SCROLLID'" }')
+    DATA=$(${CURL} -X POST "${url}/_search/scroll" -H "${HEADER}" -d '{ "scroll" : "1m", "scroll_id" : "'$SCROLLID'" }')
     wait $PID
 
   done
 
   echo "]"
+  exit 0
 }
 
-function handleImport() {
-  # jq -nc --stream 'fromstream(1|truncate_stream(inputs))'
-  echo "not implemented yet"
-  exit 1
-}
-
-function handleIndex() {
-  case "$1" in
-
-  add | create | new)
-    if [[ -z "$2" ]]; then
-      echo "No index defined"
-      exit 1
-    fi
-    if [[ -z "$3" ]]; then
-      echo "Number of shards not defined"
-      exit 1
-    fi
-    if [[ -z "$4" ]]; then
-      echo "Number of replicas not defined"
-      exit 1
-    fi
-    ${CURL} -X PUT ${URL}/$2?format=json -d '{"settings": { "index.number_of_shards": '$3', "index.number_of_replicas": '$4' }}' -H "${HEADER}" | jq '.'
-    ;;
-
-  close)
-    if [[ -z "$2" ]]; then
-      echo "No index defined"
-      exit 1
-    fi
-    ${CURL} -X POST ${URL}/$2/_close?format=json | jq '.'
-    ;;
-
-  copy | reindex)
-    if [[ -z "$2" ]]; then
-      echo "No source index defined"
-      exit 1
-    fi
-    if [[ -z "$3" ]]; then
-      echo "No target index defined"
-      exit 1
-    fi
-    if [[ -z "$4" ]]; then
-      ${CURL} -X POST ${URL}/_reindex/?format=json -d '{"source": {"index": "'$2'"}, "dest": {"index": "'$3'"}}' -H "${HEADER}" | jq '.'
-    else
-      ${CURL} -X POST ${URL}/_reindex/?format=json -d '{"source": {"index": "'$2'"}, "dest": {"index": "'$3'"}, "script": {"inline": "'"$4"'"} }' -H "${HEADER}" | jq '.'
-    fi
-    ;;
-
-  delete | drop | remove | rm)
-    shift
-    handleIndexDelete "$@"
-    ;;
-
-  exists)
-    if [[ -z "$2" ]]; then
-      echo "No index defined"
-      exit 1
-    fi
-    ${CURL} -X HEAD ${URL}/$2
-    ;;
-
-  getmapping)
-    if [[ -z "$2" ]]; then
-      echo "No index defined"
-      exit 1
-    fi
-    ${CURL} -X GET ${URL}/$2/_mapping/?format=json | jq '.'
-    ;;
-
-  list)
-    ${CURL} ${URL}/_cat/indices?format=json | jq -r '.[].index'
-    ;;
-
-  open)
-    if [[ -z "$2" ]]; then
-      echo "No index defined"
-      exit 1
-    fi
-    ${CURL} -X POST ${URL}/$2/_open?format=json | jq '.'
-    ;;
-
-  readonly)
-    if [[ -z "$2" ]]; then
-      echo "No index defined"
-      exit 1
-    fi
-    if [[ -z "$3" ]]; then
-      echo "Select true or false"
-      exit 1
-    fi
-    ${CURL} -X PUT ${URL}/$2/_settings?format=json -d '{"index": { "blocks": {"read_only_allow_delete": "'$3'" }}}' -H "${HEADER}" | jq '.'
-    ;;
-
-  replica | replicas)
-    if [[ -z "$2" ]]; then
-      echo "No index defined"
-      exit 1
-    fi
-    if [[ -z "$3" ]]; then
-      echo "No replica count"
-      exit 1
-    fi
-    ${CURL} -X PUT ${URL}/$2/_settings?format=json -d '{"index": { "number_of_replicas": '$3' }}' -H "${HEADER}" | jq '.'
-    ;;
-
-  savemapping)
-    if [[ -z "$2" ]]; then
-      echo "No index defined"
-      exit 1
-    fi
-    if [[ -z "$3" ]]; then
-      echo "No output file defined"
-      exit 1
-    fi
-    ${CURL} -o $2 -X GET ${URL}/$3/_mapping/?format=json
-    ;;
-
-  status)
-    if [[ -z "$2" ]]; then
-      ${CURL} ${URL}/_cat/indices?format=json | jq '.'
-      exit 0
-    fi
-    ${CURL} ${URL}/$2?format=json | jq '.'
-    ;;
-
-  *) showHelpIndex ;;
-
-  esac
-}
-
-function handleIndexDelete() {
+function handle_dump_mapping() {
   if [[ -z "$1" ]]; then
-    echo "No index defined"
+    echo "Error: No index defined"
     exit 1
   fi
 
-  ${CURL} -X DELETE ${URL}/$1?format=json | jq '.'
+  ${CURL} -X GET ${url}/$1/_mapping/?format=json | jq '.'
+  exit 0
 }
 
-function handleMaster() {
-  case "$1" in
+function handle_dump_settings() {
+  if [[ -z "$1" ]]; then
+    echo "Error: No index defined"
+    exit 1
+  fi
 
-  name)
-    ${CURL} ${URL}/_cat/master?format=json | jq -r '.[0].node'
-    ;;
-
-  status)
-    ${CURL} ${URL}/_cat/master?format=json | jq '.'
-    ;;
-
-  *) showHelpMaster ;;
-
-  esac
+  ${CURL} -X GET ${url}/$1/_settings/?format=json | jq '.'
+  exit 0
 }
 
-function handleNode() {
-  case "$1" in
-
-  data)
-    ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0]."node.data"'
-    ;;
-
-  info)
-    ${CURL} ${URL}/_cat/nodeattrs?format=json | jq '.'
-    ;;
-
-  list)
-    ${CURL} ${URL}/_cat/nodes?format=json | jq -r '.[].name'
-    ;;
-
-  name)
-    ${CURL} ${URL}/ | jq -r '.name'
-    ;;
-
-  status)
-    ${CURL} ${URL}/_cat/nodes?format=json | jq '.'
-    ;;
-
-  total)
-    ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0]."node.total"'
-    ;;
-
-  *) showHelpNode ;;
-
-  esac
+function handle_import() {
+  # jq -nc --stream 'fromstream(1|truncate_stream(inputs))'
+  echo "Error: Not implemented yet"
+  exit 1
 }
 
-function handlePlugin() {
-  case "$1" in
+function hanlde_index_close() {
+  if [[ -z "$1" ]]; then
+    echo "Error: No index defined"
+    exit 1
+  fi
 
-  list | status)
-    ${CURL} ${URL}/_cat/plugins?format=json | jq '.'
-    ;;
-
-  *) showHelpPlugin ;;
-
-  esac
+  ${CURL} -X POST ${url}/$1/_close?format=json | jq '.'
+  exit 0
 }
 
-function handleSearch() {
+function handle_index_copy() {
+  if [[ -z "$1" ]]; then
+    echo "Error: No source index defined"
+    exit 1
+  fi
+
+  if [[ -z "$2" ]]; then
+    echo "Error: No target index defined"
+    exit 1
+  fi
+
+  if [[ -z "$3" ]]; then
+    ${CURL} -X POST ${url}/_reindex/?format=json -d '{"source": {"index": "'$1'"}, "dest": {"index": "'$2'"}}' -H "${HEADER}" | jq '.'
+  else
+    ${CURL} -X POST ${url}/_reindex/?format=json -d '{"source": {"index": "'$1'"}, "dest": {"index": "'$2'"}, "script": {"inline": "'"$3"'"} }' -H "${HEADER}" | jq '.'
+  fi
+
+  exit 0
+}
+
+function hanlde_index_create() {
+  if [[ -z "$1" ]]; then
+    echo "Error: No index defined"
+    exit 1
+  fi
+
+  if [[ -z "${mappings}" ]]; then
+    mappings='{}'
+  fi
+
+  if [[ -z "${settings}" ]]; then
+    settings='{ '
+
+    if [[ ! -z "${shards}" ]]; then
+      settings=${settings}'"index.number_of_shards":'${shards}
+      if [[ ! -z "${replicas}" ]]; then
+        settings=${settings}','
+      fi
+    fi
+
+    if [[ ! -z "${replicas}" ]]; then
+      settings=${settings}'"index.number_of_replicas":'${replicas}
+    fi
+
+    settings=${settings}' }'
+  fi
+
+  data='{"settings":'${settings}',"mappings":'${mappings}'}'
+
+  echo $data
+
+  ${CURL} -X PUT ${url}/$1?format=json -d "${data}" -H "${HEADER}" | jq '.'
+  exit 0
+}
+
+function handle_index_delete() {
+  if [[ -z "$1" ]]; then
+    echo "Error: No index defined"
+    exit 1
+  fi
+
+  ${CURL} -X DELETE ${url}/$1?format=json | jq '.'
+  exit 0
+}
+
+function handle_index_exists() {
+  if [[ -z "$1" ]]; then
+    echo "Error: No index defined"
+    exit 1
+  fi
+
+  ${CURL} -X HEAD ${url}/$1
+  exit 0
+}
+
+function handle_index_list() {
+  ${CURL} ${url}/_cat/indices?format=json | jq -r '.[].index'
+  exit 0
+}
+
+function handle_index_open() {
+  if [[ -z "$1" ]]; then
+    echo "Error No index defined"
+    exit 1
+  fi
+
+  ${CURL} -X POST ${url}/$1/_open?format=json | jq '.'
+  exit 0
+}
+
+function handle_index_readonly() {
+  if [[ -z "$1" ]]; then
+    echo "Error: No index defined"
+    exit 1
+  fi
+
+  if [[ -z "$2" ]]; then
+    echo "Error: Select true or false"
+    exit 1
+  fi
+
+  ${CURL} -X PUT ${url}/$1/_settings?format=json -d '{"index": { "blocks": {"read_only_allow_delete": "'$2'" }}}' -H "${HEADER}" | jq '.'
+  exit 0
+}
+
+function handle_index_replica() {
+  if [[ -z "$1" ]]; then
+    echo "Error: No index defined"
+    exit 1
+  fi
+
+  if [[ -z "$2" ]]; then
+    echo "Error: No replica count"
+    exit 1
+  fi
+
+  ${CURL} -X PUT ${url}/$1/_settings?format=json -d '{"index": { "number_of_replicas": '$2' }}' -H "${HEADER}" | jq '.'
+  exit 0
+}
+
+function handle_index_status() {
+  if [[ -z "$1" ]]; then
+    ${CURL} ${url}/_cat/indices?format=json | jq '.'
+    exit 0
+  fi
+
+  ${CURL} ${url}/$1?format=json | jq '.'
+  exit 0
+}
+
+function handle_master_name() {
+  ${CURL} ${url}/_cat/master?format=json | jq -r '.[0].node'
+  exit 0
+}
+
+function handle_master_status() {
+  ${CURL} ${url}/_cat/master?format=json | jq '.'
+  exit 0
+}
+
+function handle_node_data() {
+  ${CURL} ${url}/_cat/health?format=json | jq -r '.[0]."node.data"'
+  exit 0
+}
+
+function handle_node_info() {
+  ${CURL} ${url}/_cat/nodeattrs?format=json | jq '.'
+  exit 0
+}
+
+function handle_node_list() {
+  ${CURL} ${url}/_cat/nodes?format=json | jq -r '.[].name'
+  exit 0
+}
+
+function handle_node_name() {
+  ${CURL} ${url}/ | jq -r '.name'
+  exit 0
+}
+
+function handle_node_status() {
+  ${CURL} ${url}/_cat/nodes?format=json | jq '.'
+  exit 0
+}
+
+function handle_node_count() {
+  ${CURL} ${url}/_cat/health?format=json | jq -r '.[0]."node.total"'
+  exit 0
+}
+
+function handle_search() {
   if [[ -z "$1" ]]; then
     echo "Error: No query defined"
     echo
@@ -645,76 +831,77 @@ function handleSearch() {
   fi
 
   if [[ -z "$2" ]]; then
-    ${CURL} ${URL}/_search?q=$1 | jq '.'
+    ${CURL} ${url}/_search?q=$1 | jq '.'
     exit 0
   fi
 
-  ${CURL} ${URL}/$1/_search?q=$2 | jq '.'
+  ${CURL} ${url}/$1/_search?q=$2 | jq '.'
   exit 0
 }
 
-function handleShard() {
-  case "$1" in
-
-  allocation)
-    if [[ -z "$2" ]]; then
-      echo "Choose none to disable allocation or null to restart it"
-      exit 1
-    fi
-    if [[ "$2" == "null" ]]; then
-      ${CURL} -X PUT ${URL}/_cluster/settings?format=json -d '{"persistent": {"cluster.routing.allocation.enable": null}}' -H "${HEADER}" | jq '.'
-    else
-      ${CURL} -X PUT ${URL}/_cluster/settings?format=json -d '{"persistent": {"cluster.routing.allocation.enable": "'$2'"}}' -H "${HEADER}" | jq '.'
-    fi
-    ;;
-
-  exclude)
-    if [[ -z "$2" ]]; then
-      echo "Error: No host defined"
-      echo
-      exit 1
-    fi
-    ${CURL} -X PUT ${URL}/_cluster/settings?format=json -d '{"transient": {"cluster.routing.allocation.exclude._name": "'$2'"}}' -H "${HEADER}" | jq '.'
-    ;;
-
-  initializing)
-    ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0].init'
-    ;;
-
-  primary)
-    ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0].pri'
-    ;;
-
-  rebalance)
-    if [[ -z "$2" ]]; then
-      echo "No type defined: use [all|primaries|replicas|none]"
-      exit 1
-    fi
-    ${CURL} -X PUT ${URL}/_cluster/settings?format=json -d '{"transient": {"cluster.routing.rebalance.enable": "'$2'"}}' -H "${HEADER}" | jq '.'
-    ;;
-
-  relocating)
-    ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0].relo'
-    ;;
-
-  status)
-    ${CURL} ${URL}/_cat/shards?format=json | jq '.'
-    ;;
-
-  total)
-    ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0].shards'
-    ;;
-
-  unassigned)
-    ${CURL} ${URL}/_cat/health?format=json | jq -r '.[0].unassign'
-    ;;
-
-  *) showHelpShard ;;
-
-  esac
+function handle_shard_allocation() {
+  if [[ -z "$1" ]]; then
+    echo "Error: Choose none to disable allocation or null to restart it"
+    exit 1
+  fi
+  if [[ "$1" == "null" ]]; then
+    ${CURL} -X PUT ${url}/_cluster/settings?format=json -d '{"persistent": {"cluster.routing.allocation.enable": null}}' -H "${HEADER}" | jq '.'
+  else
+    ${CURL} -X PUT ${url}/_cluster/settings?format=json -d '{"persistent": {"cluster.routing.allocation.enable": "'$1'"}}' -H "${HEADER}" | jq '.'
+  fi
+  exit 0
 }
 
-function handleSql() {
+function handle_shard_exclude() {
+  if [[ -z "$1" ]]; then
+    echo "Error: No host defined"
+    echo
+    exit 1
+  fi
+  ${CURL} -X PUT ${url}/_cluster/settings?format=json -d '{"transient": {"cluster.routing.allocation.exclude._name": "'$1'"}}' -H "${HEADER}" | jq '.'
+  exit 0
+}
+
+function handle_shard_initializing() {
+  ${CURL} ${url}/_cat/health?format=json | jq -r '.[0].init'
+  exit 0
+}
+
+function handle_shard_primary() {
+  ${CURL} ${url}/_cat/health?format=json | jq -r '.[0].pri'
+  exit 0
+}
+
+function handle_shard_rebalance() {
+  if [[ -z "$1" ]]; then
+    echo "Error: No type defined [all|primaries|replicas|none]"
+    exit 1
+  fi
+  ${CURL} -X PUT ${url}/_cluster/settings?format=json -d '{"transient": {"cluster.routing.rebalance.enable": "'$1'"}}' -H "${HEADER}" | jq '.'
+  exit 0
+}
+
+function handle_shard_relocating() {
+  ${CURL} ${url}/_cat/health?format=json | jq -r '.[0].relo'
+  exit 0
+}
+
+function handle_shard_status() {
+  ${CURL} ${url}/_cat/shards?format=json | jq '.'
+  exit 0
+}
+
+function handle_shard_total() {
+  ${CURL} ${url}/_cat/health?format=json | jq -r '.[0].shards'
+  exit 0
+}
+
+function handle_shard_unassigned() {
+  ${CURL} ${url}/_cat/health?format=json | jq -r '.[0].unassign'
+  exit 0
+}
+
+function handle_sql() {
   if [[ -p /proc/self/fd/0 ]]; then
     QUERY=$(cat - | sed 's/"/\\"/g')
   fi
@@ -724,90 +911,110 @@ function handleSql() {
   fi
 
   if [[ -z "${QUERY}" ]]; then
-    echo "Error: no query given"
+    echo "Error: No query defined"
     showHelpSql
   fi
 
-  ${CURL} -X POST ${URL}'/_sql?&format=txt' -d '{"query": "'"${QUERY}"'", "fetch_size": "'${SIZE}'" }' -H "${HEADER}"
+  ${CURL} -X POST ${url}'/_sql?&format=txt' -d '{"query": "'"${QUERY}"'", "fetch_size": "'${SIZE}'" }' -H "${HEADER}"
   exit 0
 }
 
-function handleTask() {
-  COMMAND="$1"
-  shift
-
-  case "${COMMAND}" in
-
-  abort | cancel | kill | stop | terminate) handleTaskCancel "$@" ;;
-  list | status) handleTaskList "$@" ;;
-  *) showHelpTask ;;
-
-  esac
-
-  exit 1
-}
-
-function handleTaskCancel() {
-  ${CURL} -X POST -H "${HEADER}" ${URL}/_tasks/$1/_cancel | jq '.'
+function handle_task_cancel() {
+  ${CURL} -X POST -H "${HEADER}" ${url}/_tasks/$1/_cancel | jq '.'
   exit 0
 }
 
-function handleTaskList() {
-  ${CURL} ${URL}/_tasks?group_by=parents | jq '.'
+function handle_task_list() {
+  ${CURL} ${url}/_tasks?group_by=parents | jq '.'
   exit 0
 }
 
-function parseOptionsAndCommand() {
+###############################################################################
+# Parse Command Line Arguments and Redirect to Functions
+###############################################################################
+
+function parse_options_and_command() {
   for i in "$@"; do
     case $i in
+    --mapping=*)
+      load_mappings "${i#*=}"
+      shift
+      ;;
+    --mappings=*)
+      load_mappings "${i#*=}"
+      shift
+      ;;
+    --replica=*)
+      replicas="${i#*=}"
+      shift
+      ;;
+    --replicas=*)
+      replicas="${i#*=}"
+      shift
+      ;;
+    --settings=*)
+      load_settings "${i#*=}"
+      shift
+      ;;
+    --shards=*)
+      shards="${i#*=}"
+      shift
+      ;;
     --size=*)
-      SIZE="${i#*=}"
+      size="${i#*=}"
       shift
       ;;
     --script=*)
-      SCRIPT="${i#*=}"
+      script="${i#*=}"
+      shift
+      ;;
+    --timeout=*)
+      timeout="${i#*=}"
       shift
       ;;
     --url=*)
-      URL="${i#*=}"
+      url="${i#*=}"
       shift
       ;;
     --*)
-      echo "Error: unknown option: $i"
+      echo "Error: Unknown option $i"
       echo
-      showHelpGeneral
+      show_help_general
       ;;
     *) ;;
     esac
   done
 
-  COMMAND="$1"
+  command="$1"
   shift
 
-  case "${COMMAND}" in
+  case "${command}" in
 
-  alias | aliases) handleAlias "$@" ;;
-  allocation) handleAllocation "$@" ;;
-  cluster) handleCluster "$@" ;;
-  color | colour) handleClusterStatus "$@" ;;
-  delete) handleDelete "$@" ;;
-  donate | donation) handleDonation "$@" ;;
-  dump) handleDump "$@" ;;
-  health) handleClusterHealth "$@" ;;
-  help) showHelp "$@" ;;
-  index | indices) handleIndex "$@" ;;
-  master) handleMaster "$@" ;;
-  node | nodes) handleNode "$@" ;;
-  plugin | plugins) handlePlugin "$@" ;;
-  search) handleSearch "$@" ;;
-  shard | shards) handleShard "$@" ;;
-  status) handleClusterStatus "$@" ;;
-  sql) handleSql "$@" ;;
-  task | tasks) handleTask "$@" ;;
-  version) handleClusterVersion "$@" ;;
+  alias | aliases) parse_alias_command "$@" ;;
+  allocation) parse_allocation_command "$@" ;;
+  cluster) parse_cluster_command "$@" ;;
+  color | colour) parse_color_command "$@" ;;
+  delete) parse_delete_command "$@" ;;
+  donate | donation) process_donation_command ;;
+  dump | export) parse_dump_command "$@" ;;
+  health) parse_health_command "$@" ;;
+  help) parse_help_command "$@" ;;
+  index | indices) parse_index_command "$@" ;;
+  list) parse_list_command "$@" ;;
+  master) parse_master_command "$@" ;;
+  node | nodes) parse_node_command "$@" ;;
+  plugin | plugins) parse_plugin_command "$@" ;;
+  reindex) parse_reindex_command "$@" ;;
+  query | search) parse_search_command "$@" ;;
+  shard | shards) parse_shard_command "$@" ;;
+  status) parse_status_command "$@" ;;
+  sql) parse_sql_command "$@" ;;
+  task | tasks) parse_task_command "$@" ;;
+  version) parse_version_command "$@" ;;
   *)
-    echo "Error: unknown command: ${COMMAND}"
-    showHelpGeneral
+    echo "Error: Unknown command ${command}"
+    echo
+    show_help_general
     ;;
 
   esac
@@ -815,8 +1022,12 @@ function parseOptionsAndCommand() {
   exit 1
 }
 
-checkDependencies
-configureDefaults
-parseOptionsAndCommand "$@"
+###############################################################################
+# Main Program
+###############################################################################
+
+check_dependencies
+configure_defaults
+parse_options_and_command "$@"
 
 exit 1
